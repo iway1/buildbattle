@@ -181,6 +181,6 @@ class TileGenerator {
     }
 }
 //let tileGenerator = new IsometricTileGenerator();
-//let tileGenerator = new cTileGenerator();
-//tileGenerator.init();
+let tileGenerator = new cTileGenerator();
+tileGenerator.init();
 //console.log("Yay");

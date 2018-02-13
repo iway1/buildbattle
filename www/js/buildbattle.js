@@ -89,7 +89,7 @@ class Game {
             if( this.local_player != undefined && server_player.id === this.local_player.id ) {
                 // update any stuff that is handled server side.
             } else {
-                console.log("opposing player map vals: " + Object.values(this.opposing_player_map));
+                // console.log("opposing player map vals: " + Object.values(this.opposing_player_map));
                 if( this.opposing_players[this.opposing_player_map[server_player.id]] != undefined ){
                     this.opposing_players[this.opposing_player_map[server_player.id]].setFromUpdateData(server_player);
                 }
@@ -213,7 +213,7 @@ class Player {
     }
 
     setFromUpdateData(player) {
-        console.log("Updated from update data... new pos, hp, dir: " + this.pos + ", " + this.hp + ", " + this.direction);
+        // console.log("Updated from update data... new pos, hp, dir: " + this.pos + ", " + this.hp + ", " + this.direction);
         this.pos = player.pos;
         this.hp = player.hp;
         this.direction = player.direction;
