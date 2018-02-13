@@ -85,6 +85,11 @@ socket.on('addOpposingPlayer', function(player){
 socket.on('sync', function(gameServerData){
 	game.syncWithServer(gameServerData);
 });
+
+socket.on('playerLeft', function(player_id) {
+    console.log("Received player left signal.")
+    game.playerLeft(player_id);
+});
 //
 //socket.on('playerDied', function(pid){
 //
@@ -105,7 +110,7 @@ resources.load(image_urls);
 resources.onReady(resourcesLoaded);
 
 $(window).on("beforeunload", function(){
-    socket.emit("leaveGame", {pid: pid});
+    socket.emit("leaveGame", pid);
 })
 
 $(document).ready( function(){
