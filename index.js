@@ -1,3 +1,8 @@
+Array.prototype.remove = function(from, to){
+  var rest = this.slice((to || from) + 1 || this.length);
+  this.length = from < 0 ? this.length + from : from;
+  return this.push.apply(this, rest);
+};
 var express = require('express');
 var app = express();
 var counter = 0;
@@ -20,10 +25,12 @@ class GameServer{
 
     constructor() {
         this.players = []
+        this.player_map = {}
     }
 
     addPlayer(player) {
         this.players.push(player);
+        this.player_map[player.id] = this.players.length - 1;
     }
     playerDied(pid) {
         // Handle player death...
@@ -36,8 +43,25 @@ class GameServer{
             }
         })
     }
+    removePlayer(pid) {
+        this.players.splice(this.player_map[pid], 1);
+        this.updatePlayerMap();
+    }
+
+    updatePlayerMap() {
+        this.player_map = {};
+        var c = 0;
+        this.players.forEach(function(player) {
+            this.player_map[player.id] = c;
+            c++;
+        }.bind(this));
+    }
     getData() {
         return {players: this.players};
+    }
+    playerLeft(pid) {
+        this.removePlayer(pid);
+        console.log('Player with id ' + pid + ' has left the game! Removed from players.');
     }
 }
 
@@ -70,6 +94,14 @@ io.on('connection', function(client) {
 		client.emit('sync', game.getData());
 		client.broadcast.emit('sync', game.getData());
 	});
+
+	client.on('leaveGame', function(player_id) {
+	    game.playerLeft(player_id);
+	    console.log("Emitted player left signal.")
+	    client.broadcast.emit('playerLeft', player_id);
+	})
+
+
 });
 
 class Player {
@@ -81,11 +113,9 @@ class Player {
         this.direction = 0.0;
     }
     update(updateData) {
-        console.log("Updating player ID " + updateData.id);
         if( updateData.id != undefined) this.id = updateData.id;
         if( updateData.pos != undefined ) {
             this.pos = updateData.pos;
-            console.log("New x: " + this.pos.x + " New y: " + this.pos.y);
         }
         if( updateData.hp != undefined) this.hp = updateData.hp;
         if( updateData.direction != undefined ) this.direction = updateData.direction;

@@ -48,6 +48,12 @@ class Game {
         this.opposing_player_map[player.id] = this.opposing_players.length - 1;
     }
 
+    removeOpposingPlayer(pid) {
+        console.log("Removed opposing player " + pid)
+        this.opposing_players.splice(this.opposing_player_map[pid], 1);
+        this.updateOpposingPlayerMap();
+    }
+
     mainLoop(){
         if(this.local_player != undefined) {
             this.updateServer();
@@ -62,7 +68,6 @@ class Game {
 
     updateServer() {
         var game_data = {};
-        console.log('Sending server update. this.local_player.id '+ this.local_player.id);
         game_data.player = {
             id: this.local_player.id,
             pos: {x: this.local_player.pos.x, y: this.local_player.pos.y},
@@ -83,6 +88,20 @@ class Game {
         }
     }
 
+    updateOpposingPlayerMap() {
+        this.opposing_player_map = {};
+        var c = 0;
+        this.opposing_players.forEach(function(player){
+            this.opposing_player_map[player.id] = c;
+            c++;
+        }.bind(this))
+    }
+
+    playerLeft(pid) {
+        console.log("Player left " + pid)
+        this.removeOpposingPlayer(pid)
+    }
+
     syncWithServer(server_data) {
         // Update from server here...
         var players = server_data.players;
@@ -90,7 +109,6 @@ class Game {
             if( this.local_player != undefined && server_player.id === this.local_player.id ) {
                 // update any stuff that is handled server side.
             } else {
-                console.log("opposing player map vals: " + Object.values(this.opposing_player_map));
                 if( this.opposing_players[this.opposing_player_map[server_player.id]] != undefined ){
                     this.opposing_players[this.opposing_player_map[server_player.id]].setFromUpdateData(server_player);
                 }
@@ -214,7 +232,6 @@ class Player {
     }
 
     setFromUpdateData(player) {
-        console.log("Updated from update data... new pos, hp, dir: " + this.pos + ", " + this.hp + ", " + this.direction);
         this.pos = player.pos;
         this.hp = player.hp;
         this.direction = player.direction;
