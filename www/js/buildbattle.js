@@ -10,21 +10,26 @@ var defaults = {
 }
 document.image_urls = {
     blue_player: 'img/blue_player.png',
-    crosshair: 'img/crosshair.png'
+    crosshair: 'img/crosshair.png',
+    place_building: 'img/place_building.png'
 }
 
 class Game {
-    constructor(game_area_css_id, socket, width=800, height=600) {
+    constructor(game_area_css_id, socket) {
         this.resource_nodes = [];
         this.opposing_players = [];
         this.opposing_player_map = {};
-        this.width = width;
-        this.height = height;
         this.canvas = $(game_area_css_id)[0];
         this.canvas_context = this.canvas.getContext('2d');
         this.socket = socket;
         this.sprite_draw = new SpriteDraw(this);
+        this.selection_images = {
+            place_building: resources.get("img/place_building.png")
+        }
+        console.log("Selection images: " + this.selection_images.place_building)
+        console.log(resources.get("img/place_building.png"))
         var g = this;
+        this.selected = 1;
         setInterval(function(){
             g.mainLoop();
         }, INTERVAL);
@@ -51,6 +56,11 @@ class Game {
         console.log("Removed opposing player " + pid)
         this.opposing_players.splice(this.opposing_player_map[pid], 1);
         this.updateOpposingPlayerMap();
+    }
+
+    changeSelected(n) {
+        this.selected = n
+
     }
 
     mainLoop(){
@@ -82,9 +92,14 @@ class Game {
         this.opposing_players.forEach(function(player){
             player.updateSprite();
         })
-        if( this.crosshair != undefined ) {
-            this.canvas_context.drawImage(this.crosshair.img, this.crosshair.x - this.crosshair.img.width / 2, this.crosshair.y - this.crosshair.img.height / 2);
+        if( this.selected == 2 ){
+            console.log("This.selection_images: " + this.selection_images.place_building)
+            this.sprite_draw.drawImage(this.selection_images.place_building, this.crosshair);
         }
+        if( this.crosshair != undefined ) {
+            this.sprite_draw.drawImage(this.crosshair.img, this.crosshair)
+        }
+
     }
 
     updateOpposingPlayerMap() {
@@ -172,6 +187,12 @@ class Player {
                 case 'a':
                     t.moving.left = true;
                     break;
+                case '1':
+                    t.game.changeSelected(1);
+                    break;
+                case '2':
+                    t.game.changeSelected(2);
+                    break;
             }
 
         }).keyup(function(e){
@@ -189,6 +210,9 @@ class Player {
                 case 'a':
                     t.moving.left = false;
                     break;
+                case '1':
+
+
             }
         }).mousemove(function(e) {
             t.setDirection(e.pageX, e.pageY);
@@ -251,6 +275,9 @@ class SpriteDraw {
         this.context.drawImage(image, 0, 0, image.width, image.height, -size.width / 2, -size.height / 2, size.width, size.height);
         this.context.rotate(-angle);
         this.context.translate(-(origin.x + size.width / 2), -(origin.y + size.height / 2));
+    }
+    drawImage(image, origin, size) {
+        this.context.drawImage(image, origin.x - image.width / 2, origin.y - image.height / 2);
     }
 }
 

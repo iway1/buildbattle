@@ -1,7 +1,7 @@
 
 // This IP is hardcoded to my server, replace with your own
 
-var game = new Game('#game-canvas', socket);
+
 var pid = genRandomPid();
 
 
@@ -34,9 +34,10 @@ function genRandomPid() {
         }
         else {
             var img = new Image();
+
             img.onload = function() {
-                console.log("Loaded " + url)
                 resourceCache[url] = img;
+                console.log("Loaded image to cache: " + url)
                 if(isReady()) {
                     readyCallbacks.forEach(function(func) { func(); });
                 }
@@ -74,22 +75,6 @@ function genRandomPid() {
 })();
 
 
-socket.on('addLocalPlayer', function(player){
-	game.addLocalPlayer(player);
-});
-//
-socket.on('addOpposingPlayer', function(player){
-    game.addOpposingPlayer(player);
-});
-//
-socket.on('sync', function(gameServerData){
-	game.syncWithServer(gameServerData);
-});
-
-socket.on('playerLeft', function(player_id) {
-    console.log("Received player left signal.")
-    game.playerLeft(player_id);
-});
 //
 //socket.on('playerDied', function(pid){
 //
@@ -97,12 +82,31 @@ socket.on('playerLeft', function(player_id) {
 
 function resourcesLoaded() {
     console.log("Resources loaded...")
+    var game = new Game('#game-canvas', socket);
+
+    socket.on('addLocalPlayer', function(player){
+        game.addLocalPlayer(player);
+    });
+    //
+    socket.on('addOpposingPlayer', function(player){
+        game.addOpposingPlayer(player);
+    });
+    //
+    socket.on('sync', function(gameServerData){
+        game.syncWithServer(gameServerData);
+    });
+
+    socket.on('playerLeft', function(player_id) {
+        console.log("Received player left signal.")
+        game.playerLeft(player_id);
+    });
     connectToLobby(pid);
 }
 
 var image_urls = [
     'img/blue_player.png',
-    'img/crosshair.png'
+    'img/crosshair.png',
+    'img/place_building.png'
 ]
 
 resources.load(image_urls);
