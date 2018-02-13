@@ -105,6 +105,10 @@ resources.load(image_urls);
 
 resources.onReady(resourcesLoaded);
 
+$(window).on("beforeunload", function(){
+    socket.emit("leaveGame", {pid: pid});
+})
+
 $(document).ready( function(){
 
 
