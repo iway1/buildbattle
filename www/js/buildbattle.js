@@ -203,6 +203,10 @@ class Player {
 //                }
 //            }
 //        }
+        if( this.moving.up ) this.pos.y -= this.max_move_speed;
+        if( this.moving.down ) this.pos.y += this.max_move_speed;
+        if( this.moving.right ) this.pos.x += this.max_move_speed;
+        if( this.moving.left ) this.pos.x -= this.max_move_speed;
         if( this.mouse != undefined ) {
             this.setDirection(this.mouse.x, this.mouse.y);
         }
@@ -222,14 +226,14 @@ class Player {
 
 class SpriteDraw {
     constructor(game) {
-        this.context = game.context;
+        this.context = game.canvas_context;
     }
-    drawRotatedImage(context, image, origin, size, angle) {
-        context.translate(origin.x + size.width / 2, origin.y + size.height / 2);
-        context.rotate(angle);
-        context.drawImage(image, 0, 0, image.width, image.height, -size.width / 2, -size.height / 2, size.width, size.height);
-        context.rotate(-angle);
-        context.translate(-(origin.x + size.width / 2), -(origin.y + size.height / 2));
+    drawRotatedImage(image, origin, size, angle) {
+        this.context.translate(origin.x + size.width / 2, origin.y + size.height / 2);
+        this.context.rotate(angle);
+        this.context.drawImage(image, 0, 0, image.width, image.height, -size.width / 2, -size.height / 2, size.width, size.height);
+        this.context.rotate(-angle);
+        this.context.translate(-(origin.x + size.width / 2), -(origin.y + size.height / 2));
     }
 }
 
@@ -257,7 +261,7 @@ class Sprite {
     }
 
     render(context) {
-        SpriteDraw.drawRotatedImage(this.image, )
+        this.entity.game.sprite_draw.drawRotatedImage(this.image, this.pos, this.size, this.direction);
     }
 }
 
