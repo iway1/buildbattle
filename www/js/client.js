@@ -1,7 +1,6 @@
-var WIDTH = 1100;
-var HEIGHT = 580;
+
 // This IP is hardcoded to my server, replace with your own
-var socket = io.connect('http://10.0.0.11:3000');
+
 var game = new Game('#game-canvas', socket);
 var pid = genRandomPid();
 

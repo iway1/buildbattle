@@ -1,5 +1,4 @@
-var DEBUG = true;
-var INTERVAL = 60;
+
 
 var defaults = {
     'hp': 50,
@@ -24,7 +23,7 @@ class Game {
         this.canvas = $(game_area_css_id)[0];
         this.canvas_context = this.canvas.getContext('2d');
         this.socket = socket;
-        this.sprite_draw = SpriteDraw(this);
+        this.sprite_draw = new SpriteDraw(this);
         var g = this;
         setInterval(function(){
             g.mainLoop();
