@@ -1,5 +1,4 @@
-var DEBUG = true;
-var INTERVAL = 60;
+
 
 var defaults = {
     'hp': 50,
