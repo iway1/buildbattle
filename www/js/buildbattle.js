@@ -8,11 +8,8 @@ var defaults = {
     'player_width': 32,
     'player_height': 32
 }
-document.image_urls = {
-    blue_player: 'img/blue_player.png',
-    crosshair: 'img/crosshair.png',
-    place_building: 'img/place_building.png'
-}
+
+
 
 class Game {
     constructor(game_area_css_id, socket) {
@@ -22,12 +19,8 @@ class Game {
         this.canvas = $(game_area_css_id)[0];
         this.canvas_context = this.canvas.getContext('2d');
         this.socket = socket;
-        this.sprite_draw = new SpriteDraw(this);
-        this.selection_images = {
-            place_building: resources.get("img/place_building.png")
-        }
-        console.log("Selection images: " + this.selection_images.place_building)
-        console.log(resources.get("img/place_building.png"))
+	this.pixi_app = new Pixi.Application();
+	document.body.appendChild(this.pixi_app.view);
         var g = this;
         this.selected = 1;
         setInterval(function(){

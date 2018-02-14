@@ -10,78 +10,9 @@ function genRandomPid() {
     return "" + Math.floor(Math.random() * 1000000);
 }
 
-/* Create image caches */
-(function() {
-    var resourceCache = {};
-    var loading = [];
-    var readyCallbacks = [];
-
-    // Load an image url or an array of image urls
-    function load(urlOrArr) {
-        if(urlOrArr instanceof Array) {
-            urlOrArr.forEach(function(url) {
-                _load(url);
-            });
-        }
-        else {
-            _load(urlOrArr);
-        }
-    }
-
-    function _load(url) {
-        if(resourceCache[url]) {
-            return resourceCache[url];
-        }
-        else {
-            var img = new Image();
-
-            img.onload = function() {
-                resourceCache[url] = img;
-                console.log("Loaded image to cache: " + url)
-                if(isReady()) {
-                    readyCallbacks.forEach(function(func) { func(); });
-                }
-            };
-            resourceCache[url] = false;
-            img.src = url;
-        }
-    }
-
-    function get(url) {
-        return resourceCache[url];
-    }
-
-    function isReady() {
-        var ready = true;
-        for(var k in resourceCache) {
-            if(resourceCache.hasOwnProperty(k) &&
-               !resourceCache[k]) {
-                ready = false;
-            }
-        }
-        return ready;
-    }
-
-    function onReady(func) {
-        readyCallbacks.push(func);
-    }
-
-    window.resources = {
-        load: load,
-        get: get,
-        onReady: onReady,
-        isReady: isReady
-    };
-})();
-
-
-//
-//socket.on('playerDied', function(pid){
-//
-//});
 
 function resourcesLoaded() {
-    console.log("Resources loaded...")
+    console.log("Resources loaded...");
     var game = new Game('#game-canvas', socket);
 
     socket.on('addLocalPlayer', function(player){
@@ -109,9 +40,7 @@ var image_urls = [
     'img/place_building.png'
 ]
 
-resources.load(image_urls);
-
-resources.onReady(resourcesLoaded);
+PIXI.loader.add(image_urls).load(resourcesLoaded);
 
 $(window).on("beforeunload", function(){
     socket.emit("leaveGame", pid);
