@@ -13,7 +13,7 @@ function genRandomPid() {
 
 function resourcesLoaded() {
     console.log("Resources loaded...");
-    var game = new Game('#game-canvas', socket);
+    var game = new Game(socket);
 
     socket.on('addLocalPlayer', function(player){
         game.addLocalPlayer(player);

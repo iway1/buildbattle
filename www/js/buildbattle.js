@@ -12,27 +12,25 @@ var defaults = {
 
 
 class Game {
-    constructor(game_area_css_id, socket) {
+    constructor(socket, width=800, height=600) {
         this.resource_nodes = [];
         this.opposing_players = [];
         this.opposing_player_map = {};
-        this.canvas = $(game_area_css_id)[0];
-        this.canvas_context = this.canvas.getContext('2d');
         this.socket = socket;
-	this.pixi_app = new Pixi.Application();
-	document.body.appendChild(this.pixi_app.view);
+        this.pixi_app = new PIXI.Application(width, height, {backgroundColor : 0x53535e});
+        document.body.appendChild(this.pixi_app.view);
         var g = this;
         this.selected = 1;
-        setInterval(function(){
-            g.mainLoop();
-        }, INTERVAL);
+        this.pixi_app.ticker.add(function(dt) {
+            this.mainLoop(dt);
+        }.bind(this));
     }
 
     createCrosshair() {
-
         $("body").css("cursor", "none");
-        this.crosshair = {x: 0, y: 0, img: resources.get(document.image_urls.crosshair)};
-
+        this.crosshair = PIXI.Sprite.fromImage("img/crosshair.png");
+        this.crosshair.anchor.set(.5);
+        this.pixi_app.stage.addChild(this.crosshair);
     }
 
     addLocalPlayer(player) {
@@ -43,6 +41,7 @@ class Game {
     addOpposingPlayer(player) {
         this.opposing_players.push(new Player(player.id, this.canvas, this, false, player.pos, player.hp));
         this.opposing_player_map[player.id] = this.opposing_players.length - 1;
+        this.opposing_players[this.opposing_players.length - 1].updateSprite();
     }
 
     removeOpposingPlayer(pid) {
@@ -52,20 +51,22 @@ class Game {
     }
 
     changeSelected(n) {
-        this.selected = n
+        this.selected = n;
 
     }
 
-    mainLoop(){
+    mainLoop(deltatime){
         if(this.local_player != undefined) {
             this.updateServer();
-            this.tick();
-            this.updateCanvas();
+            this.tick(deltatime); // Handle entity updates.
         }
     }
 
-    tick() {
-        this.local_player.move();
+    tick(deltatime) {
+        this.local_player.move(deltatime);
+        this.opposing_players.forEach(function(player){
+            player.updateSprite();
+        }.bind(this))
     }
 
     updateServer() {
@@ -76,23 +77,6 @@ class Game {
             direction: this.local_player.direction
         };
         this.socket.emit('sync', game_data);
-    }
-
-    updateCanvas() {
-        this.canvas_context.clearRect(0, 0, this.canvas.width, this.canvas.height);
-
-        this.local_player.updateSprite();
-        this.opposing_players.forEach(function(player){
-            player.updateSprite();
-        })
-        if( this.selected == 2 ){
-            console.log("This.selection_images: " + this.selection_images.place_building)
-            this.sprite_draw.drawImage(this.selection_images.place_building, this.crosshair);
-        }
-        if( this.crosshair != undefined ) {
-            this.sprite_draw.drawImage(this.crosshair.img, this.crosshair)
-        }
-
     }
 
     updateOpposingPlayerMap() {
@@ -149,7 +133,11 @@ class Player {
         this.game = game;
         this.is_local = is_local;
         this.hp = hp;
-        this.sprite = new Sprite(this, document.image_urls.blue_player, pos, {width: 32, height: 32}, [], 0.0);
+	    this.sprite = PIXI.Sprite.fromImage("img/blue_player.png");
+	    this.sprite.anchor.set(.5);
+	    this.sprite.width = this.width;
+	    this.sprite.height = this.height
+	    this.game.pixi_app.stage.addChild(this.sprite);
         if( is_local ) {
             this.setControls();
         }
@@ -161,7 +149,8 @@ class Player {
 
     setDirection(mouse_x, mouse_y) {
         this.mouse = {x: mouse_x, y: mouse_y};
-        this.direction = Math.atan2(mouse_x - (this.pos.x + this.width / 2), (this.pos.y + this.height / 2) - mouse_y);
+        this.direction = Math.atan2(mouse_x - (this.pos.x), (this.pos.y) - mouse_y) - Math.PI / 2;
+        this.sprite.rotation = this.direction;
     }
 
     setControls() {
@@ -219,87 +208,28 @@ class Player {
 
 
 
-    move() {
-
-
-//        if( this.moving.up || this.moving.down || this.moving.left || this.moving.right) {
-//            if(this.speed < this.max_move_speed) {
-//                var new_speed = this.speed + this.acceleration;
-//                if (new_speed > this.max_move_speed ) {
-//                    this.speed = this.max_move_speed;
-//                } else {_m
-//x_
-//                    this.speed = new_speed;
-//                }
-//
-//                let has_horizontal = this.moving.up ? !this.moving.down : this.moving.down // XOR moving up and down.
-//                let has_vertical = this.moving.right ? !this.moving.left : this.moving.left // XOR moving left or right.
-//                if(has_horizontal && has_vertical) {
-//                    let x_component = // calculate x component
-//                }
-//            }
-//        }
-        if( this.moving.up ) this.pos.y -= this.max_move_speed;
-        if( this.moving.down ) this.pos.y += this.max_move_speed;
-        if( this.moving.right ) this.pos.x += this.max_move_speed;
-        if( this.moving.left ) this.pos.x -= this.max_move_speed;
+    move(deltatime) {
+        if( this.moving.up ) this.pos.y -= this.max_move_speed * deltatime;
+        if( this.moving.down ) this.pos.y += this.max_move_speed * deltatime;
+        if( this.moving.right ) this.pos.x += this.max_move_speed * deltatime;
+        if( this.moving.left ) this.pos.x -= this.max_move_speed * deltatime;
         if( this.mouse != undefined ) {
             this.setDirection(this.mouse.x, this.mouse.y);
         }
+        this.sprite.x = this.pos.x;
+        this.sprite.y = this.pos.y;
+    }
+
+    updateSprite() {
+        this.sprite.x = this.pos.x;
+        this.sprite.y = this.pos.y;
+        this.sprite.rotation = this.direction;
     }
 
     setFromUpdateData(player) {
         this.pos = player.pos;
         this.hp = player.hp;
         this.direction = player.direction;
-    }
-
-    updateSprite() {
-        this.sprite.updatePosition(this.pos, this.direction);
-    }
-}
-
-class SpriteDraw {
-    constructor(game) {
-        this.context = game.canvas_context;
-    }
-    drawRotatedImage(image, origin, size, angle) {
-        this.context.translate(origin.x + size.width / 2, origin.y + size.height / 2);
-        this.context.rotate(angle);
-        this.context.drawImage(image, 0, 0, image.width, image.height, -size.width / 2, -size.height / 2, size.width, size.height);
-        this.context.rotate(-angle);
-        this.context.translate(-(origin.x + size.width / 2), -(origin.y + size.height / 2));
-    }
-    drawImage(image, origin, size) {
-        this.context.drawImage(image, origin.x - image.width / 2, origin.y - image.height / 2);
-    }
-}
-
-class Sprite {
-    constructor(entity, url, pos, size, frames, direction, align_to_grid) {
-        this.entity = entity;
-        this.url = url;
-        this.pos = pos;
-        this.size = size;
-        this.frames = frames;
-        this._index = 0;
-        this.frames = frames;
-        this.direction = direction;
-        this.image = resources.get(this.url);
-        this.align_to_grid;
-    }
-    tick(delta_t) {
-        this._index = (this._index + delta_t) % this.frames.length;
-    }
-
-    updatePosition(pos, direction) {
-        this.pos = pos;
-        this.direction = direction - Math.PI / 2;
-        this.render(this.entity.game.canvas_context);
-    }
-
-    render(context) {
-        this.entity.game.sprite_draw.drawRotatedImage(this.image, this.pos, this.size, this.direction);
     }
 }
 
