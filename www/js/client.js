@@ -15,6 +15,7 @@ socket.on('enterGame', function(dat){
 })
 
 
+
 $(document).ready(function(){
     console.log("Connecting to game...");
     socket.emit('connectToGame', {id: pid});
