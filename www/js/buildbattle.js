@@ -15,7 +15,7 @@ var colors = {
 }
 
 class Game {
-    constructor(socket, player_id, tile_width=64, n_rows=10, n_cols=12) {
+    constructor(socket, player_id, spawn_point, start_hp, tile_width=64, n_rows=10, n_cols=12) {
         console.log("Initializing game...")
         this.player_id = player_id;
         this.resource_nodes = [];
@@ -25,6 +25,7 @@ class Game {
         this.cols = n_cols;
         this.tile_width = tile_width;
         this.socket = socket;
+        this.init_info = {spawn_point: spawn_point, hp: start_hp}
         var g = this;
         window.phaser_game = new Phaser.Game(tile_width*n_cols, tile_width*n_rows, Phaser.CANVAS, 'build-battle', { preload: this.preload, create: this.create.bind(this) , update: this.mainLoop.bind(this)});
 
@@ -48,6 +49,7 @@ class Game {
         console.log("Running create");
         this.initIo();
         this.createGrid();
+        this.addLocalPlayer({id: this.player_id})
 	    this.socket.emit('connectToLobby', {id: this.player_id});
     }
 
@@ -56,9 +58,9 @@ class Game {
         this.grid.hideAll();
     }
 
-    addLocalPlayer(player) {
+    addLocalPlayer() {
         console.log("Attempting to add local player...")
-        this.local_player = new Player(player.id, this.canvas, this, true, player.pos, player.hp);
+        this.local_player = new Player(this.player_id, this.canvas, this, true, this.init_info.spawn_point, this.init_info.hp);
         this.createCrosshair();
     }
 
@@ -297,11 +299,10 @@ class Player {
 class Grid {
     constructor(width, n_rows, n_cols) {
         console.log("Grid constructed.")
-        this.game = game;
         this.rows = n_rows;
         this.cols = n_cols;
         this.tile_width = width;
-        this.tile_buildable = this.makeZeroArray(this.rows, this.cols);
+        this.tile_buildable = this.makeOneArray(this.rows, this.cols);
         this.buildable_graphics = this.buildableGraphics();
         this.grid_graphics = this.gridGraphics();
 
@@ -365,7 +366,7 @@ class Grid {
         return graphics;
     }
 
-    makeZeroArray(r, c) {
+    makeOneArray(r, c) {
         var ret = [];
         var i = 0;
         var j = 0;
@@ -374,7 +375,7 @@ class Grid {
             var arr = [];
             ret.push(arr)
             while(j < c) {
-                ret[i].push(0);
+                ret[i].push(1);
                 j++;
             }
             i ++;

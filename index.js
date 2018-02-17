@@ -9,7 +9,11 @@ var counter = 0;
 var BALL_SPEED = 10;
 var WIDTH = 1100;
 var HEIGHT = 580;
-var TANK_INIT_HP = 100;
+var MAX_HP = 100;
+
+var N_ROWS = 10;
+var N_COLS = 12;
+var TILE_WIDTH = 64;
 
 //Static resources server
 app.use(express.static(__dirname + '/www'));
@@ -23,9 +27,12 @@ var io = require('socket.io')(server);
 
 class GameServer{
 
-    constructor() {
+    constructor(rows, cols, tile_width) {
         this.players = []
         this.player_map = {}
+        this.rows = rows;
+        this.cols = cols;
+        this.width = tile_width;
     }
 
     addPlayer(player) {
@@ -68,21 +75,28 @@ class GameServer{
 }
 
 
-var game = new GameServer();
+var game = new GameServer(N_ROWS, N_COLS, TILE_WIDTH);
 
 /* Connection events */
 
 io.on('connection', function(client) {
 	console.log('User connected');
 
-	client.on('connectToLobby', function(player){
-	    var x_init = 500;
-	    var y_init = 500;
+	client.on('connectToGame', function(player){
+	    var x_init = Math.floor(Math.random() * (N_COLS*TILE_WIDTH));
+	    var y_init = Math.floor(Math.random() * (N_ROWS*TILE_WIDTH));
 	    var new_player = new Player(player.id, {x: x_init, y: y_init}, 50);
         game.addPlayer(new_player);
-        client.emit('addLocalPlayer', new_player);
+        var dat = new_player;
+        dat.n_rows = N_ROWS;
+        dat.n_cols = N_COLS;
+        dat.x_spawn = x_init;
+        dat.y_spawn = y_init;
+        dat.hp = MAX_HP;
+        dat.tile_width = TILE_WIDTH;
+        client.emit('enterGame', dat)
         client.broadcast.emit('addOpposingPlayer', new_player);
-        console.log("Added player. Players are now: ")
+        console.log("Player connected. All player id:")
         game.players.forEach(function(player) {
             console.log(player.id);
         })
@@ -128,7 +142,57 @@ class Player {
 
 class Grid {
     constructor(tile_width, n_vertical, n_horizontal) {
+        this.rows = n_vertical;
+        this.cols = n_horizontal;
+        this.width = tile_width;
+        this.tile_buildable = this.makeOneArray(this.rows, this.cols);
+        this.tile_walkable = this.makeOneArray(this.rows, this.cols);
+    }
+    makeOneArray(r, c) {
+        var ret = [];
+        var i = 0;
+        var j = 0;
+        while(i < r) {
+            j = 0;
+            var arr = [];
+            ret.push(arr)
+            while(j < c) {
+                ret[i].push(1);
+                j++;
+            }
+            i ++;
+        }
+        return ret;
+    }
+}
 
+var StructureTypes = {
+    TILE: "TILE",
+    EDGE: "EDGE",
+    CORNER: "CORNER"
+}
+
+var StructureHP = {
+    CRATE: 80
+}
+
+class Structure {
+    constructor(game, hp, type, walkable) {
+        this.game = game;
+        this.hp = hp;
+        this.type = type;
+        this.walkable = walkable;
+
+        if(!this.walkable) {
+
+        }
+    }
+}
+
+class Crate extends Structure {
+    constructor(game) {
+
+        super(game, StructureHP.CRATE, StructureTypes.TILE, false);
     }
 
 }
