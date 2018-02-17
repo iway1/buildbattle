@@ -9,18 +9,24 @@ var defaults = {
     'player_height': 32
 }
 
-
+var colors = {
+    'bright-red': 0xff2511,
+    'light-green': 0x72ff8e
+}
 
 class Game {
-    constructor(socket, player_id, width=800, height=600) {
+    constructor(socket, player_id, tile_width=64, n_rows=10, n_cols=12) {
         console.log("Initializing game...")
         this.player_id = player_id;
         this.resource_nodes = [];
         this.opposing_players = [];
         this.opposing_player_map = {};
+        this.rows = n_rows;
+        this.cols = n_cols;
+        this.tile_width = tile_width;
         this.socket = socket;
         var g = this;
-        window.phaser_game = new Phaser.Game(width, height, Phaser.CANVAS, 'build-battle', { preload: this.preload, create: this.create.bind(this) , update: this.mainLoop.bind(this)});
+        window.phaser_game = new Phaser.Game(tile_width*n_cols, tile_width*n_rows, Phaser.CANVAS, 'build-battle', { preload: this.preload, create: this.create.bind(this) , update: this.mainLoop.bind(this)});
 
         console.log("Finished initializing game...")
     }
@@ -38,11 +44,18 @@ class Game {
     }
 
     create() {
-        phaser_game.stage.backgroundColor = "#182d3b";
+        phaser_game.stage.backgroundColor = "E9F283";
         console.log("Running create");
-        initIo();
+        this.initIo();
+        this.createGrid();
 	    this.socket.emit('connectToLobby', {id: this.player_id});
     }
+
+    createGrid() {
+        this.grid = new Grid(this.tile_width, this.rows, this.cols);
+        this.grid.hideAll();
+    }
+
     addLocalPlayer(player) {
         console.log("Attempting to add local player...")
         this.local_player = new Player(player.id, this.canvas, this, true, player.pos, player.hp);
@@ -108,7 +121,6 @@ class Game {
 
     syncWithServer(server_data) {
         // Update from server here...
-        console.log("Receiving server update.")
         var players = server_data.players;
         var c = 0;
         var unencountered_opposing_players = Object.keys(this.opposing_player_map);
@@ -130,6 +142,27 @@ class Game {
         unencountered_opposing_players.forEach(function(player) {
             this.removeOpposingPlayer(player);
         }.bind(this))
+    }
+
+    initIo() {
+        var game = this;
+        var socket = this.socket;
+        socket.on('addLocalPlayer', function(player){
+            game.addLocalPlayer(player);
+        });
+        //
+        socket.on('addOpposingPlayer', function(player){
+            game.addOpposingPlayer(player);
+        });
+        //
+        socket.on('sync', function(gameServerData){
+            game.syncWithServer(gameServerData);
+        });
+
+        socket.on('playerLeft', function(player_id) {
+            console.log("Received player left signal.")
+            game.playerLeft(player_id);
+        });
     }
 }
 
@@ -180,7 +213,7 @@ class Player {
     setControls() {
         var t = this;
         $(document).keypress(function(e){
-            var k = e.key;
+            var k = e.key.toLowerCase();
             switch(k) {
                 case 'w':
                     t.moving.up = true;
@@ -199,6 +232,9 @@ class Player {
                     break;
                 case '2':
                     t.game.changeSelected(2);
+                    break;
+                case 'g':
+                    t.game.grid.toggleShow();
                     break;
             }
 
@@ -258,18 +294,126 @@ class Player {
     }
 }
 
-class GameGrid {
-    constructor(game, x_tiles, y_tiles, tile_width, tile_height) {
+class Grid {
+    constructor(width, n_rows, n_cols) {
+        console.log("Grid constructed.")
         this.game = game;
-        this.x_tiles = x_tiles;
-        this.y_tiles = y_tiles;
-        this.tile_width = defaults.tile_width;
-        this.tile_height = tile_height;
+        this.rows = n_rows;
+        this.cols = n_cols;
+        this.tile_width = width;
+        this.tile_buildable = this.makeZeroArray(this.rows, this.cols);
+        this.buildable_graphics = this.buildableGraphics();
+        this.grid_graphics = this.gridGraphics();
+
     }
 
-    renderImageAligned(image, coords) {
-        context.drawImage(image, coords.x, coords.y, this.tile_width, this.tile_height);
+    toggleShow() {
+        if( this.grid_graphics.visible == 0 ) {
+            this.showAll();
+        } else {
+            this.hideAll();
+        }
     }
+
+    showGrid() {
+        this.grid_graphics.visible = true;
+    }
+
+    hideGrid() {
+        this.grid_graphics.visible = false;
+    }
+
+    showBuildable(){
+        this.buildable_graphics.visible = true;
+    }
+
+    hideBuildable() {
+        this.buildable_graphics.visible = false;
+    }
+
+    showAll() {
+        this.showGrid();
+        this.showBuildable();
+
+    }
+
+    hideAll() {
+        this.hideGrid();
+        this.hideBuildable();
+    }
+
+    buildableGraphics() {
+        console.log("Drawing buildable graphics...")
+        var graphics = phaser_game.add.graphics(0, 0);
+        var i = 0;
+        var j = 0;
+        while(i < this.rows) {
+            j = 0;
+            while( j < this.cols ) {
+                if(this.tile_buildable[i][j]) {
+                    graphics.beginFill(colors['light-green'], .1);
+                } else {
+                    graphics.beginFill(colors['bright-red'], .1);
+                }
+
+                graphics.drawRect(j*this.tile_width, i*this.tile_width, this.tile_width, this.tile_width);
+                graphics.endFill();
+                j++;
+            }
+            i++;
+        }
+        return graphics;
+    }
+
+    makeZeroArray(r, c) {
+        var ret = [];
+        var i = 0;
+        var j = 0;
+        while(i < r) {
+            j = 0;
+            var arr = [];
+            ret.push(arr)
+            while(j < c) {
+                ret[i].push(0);
+                j++;
+            }
+            i ++;
+        }
+        return ret;
+    }
+    topLeft(x, y) {
+        return {x: this.col(x) * this.tile_width, y: this.row(y) * this.tile_width};
+    }
+
+    row(y) {
+        return Math.floor(y / this.tile_width);
+    }
+
+    col(x) {
+        return Math.floor(x / this.tilewidth);
+    }
+
+    gridGraphics() {
+        console.log("Drawing grid graphics.")
+        var graphics = phaser_game.add.graphics(0, 0);
+        graphics.lineStyle(2, 0x333333, .3);
+        var i = 0;
+        while(i < this.rows) {
+            graphics.moveTo(0, i*this.tile_width);
+            graphics.lineTo(this.cols*this.tile_width, i*this.tile_width);
+            i++;
+        }
+
+        i = 0;
+        while( i < this.cols) {
+            graphics.moveTo(i*this.tile_width, 0);
+            graphics.lineTo(i*this.tile_width, this.rows*this.tile_width - 1);
+            i++;
+        }
+        return graphics;
+    }
+
+
 
 }
 

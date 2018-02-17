@@ -101,7 +101,7 @@ io.on('connection', function(client) {
 	client.on('leaveGame', function(player_id) {
 	    game.playerLeft(player_id);
 	    console.log("Emitted player left signal.")
-	    client.broadcast.emit('playerLeft', player_id);
+	    //client.broadcast.emit('playerLeft', player_id);
 	})
 
 
@@ -123,6 +123,14 @@ class Player {
         if( updateData.hp != undefined) this.hp = updateData.hp;
         if( updateData.direction != undefined ) this.direction = updateData.direction;
     }
+}
+
+
+class Grid {
+    constructor(tile_width, n_vertical, n_horizontal) {
+
+    }
+
 }
 //
 //function getRandomInt(min, max) {
