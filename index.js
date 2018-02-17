@@ -29,10 +29,12 @@ class GameServer{
 
     constructor(rows, cols, tile_width) {
         this.players = []
+        this.structures = []
         this.player_map = {}
         this.rows = rows;
         this.cols = cols;
         this.width = tile_width;
+        this.grid = new Grid(TILE_WIDTH, N_ROWS, N_COLS);
     }
 
     addPlayer(player) {
@@ -128,6 +130,12 @@ class Player {
         this.pos = pos;
         this.hp = hp;
         this.direction = 0.0;
+        this.moving = {
+            up: false,
+            down: false,
+            left: false,
+            right: false
+        }
     }
     update(updateData) {
         if( updateData.id != undefined) this.id = updateData.id;
@@ -182,16 +190,11 @@ class Structure {
         this.hp = hp;
         this.type = type;
         this.walkable = walkable;
-
-        if(!this.walkable) {
-
-        }
     }
 }
 
 class Crate extends Structure {
     constructor(game) {
-
         super(game, StructureHP.CRATE, StructureTypes.TILE, false);
     }
 
