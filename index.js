@@ -185,17 +185,22 @@ var StructureHP = {
 }
 
 class Structure {
-    constructor(game, hp, type, walkable) {
+    constructor(game, hp, type, coords, walkable) {
         this.game = game;
         this.hp = hp;
         this.type = type;
         this.walkable = walkable;
+        if( !this.walkable ) {
+            if( this.type == StructureTypes.TILE ) {
+                this.game.grid.tile_walkable = 0;
+            }
+        }
     }
 }
 
 class Crate extends Structure {
-    constructor(game) {
-        super(game, StructureHP.CRATE, StructureTypes.TILE, false);
+    constructor(game, coords) {
+        super(game, StructureHP.CRATE, StructureTypes.TILE, coords, false);
     }
 
 }
