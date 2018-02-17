@@ -11,11 +11,9 @@ function genRandomPid() {
 }
 
 
-function resourcesLoaded() {
-    console.log("Resources loaded...");
-    var game = new Game(socket);
-
-    socket.on('addLocalPlayer', function(player){
+var game = new Game(socket, pid);
+var initIo = function() {
+socket.on('addLocalPlayer', function(player){
         game.addLocalPlayer(player);
     });
     //
@@ -31,29 +29,11 @@ function resourcesLoaded() {
         console.log("Received player left signal.")
         game.playerLeft(player_id);
     });
-    connectToLobby(pid);
 }
 
-var image_urls = [
-    'img/blue_player.png',
-    'img/crosshair.png',
-    'img/place_building.png'
-]
-
-PIXI.loader.add(image_urls).load(resourcesLoaded);
 
 $(window).on("beforeunload", function(){
     socket.emit("leaveGame", pid);
 })
 
-$(document).ready( function(){
-
-
-});
-
-function connectToLobby(pid){
-    console.log("Emitting connectToLobby...")
-	socket.emit('connectToLobby', {id: pid});
-
-}
 

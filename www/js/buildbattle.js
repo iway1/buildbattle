@@ -12,28 +12,39 @@ var defaults = {
 
 
 class Game {
-    constructor(socket, width=800, height=600) {
+    constructor(socket, player_id, width=800, height=600) {
+        console.log("Initializing game...")
+        this.player_id = player_id;
         this.resource_nodes = [];
         this.opposing_players = [];
         this.opposing_player_map = {};
         this.socket = socket;
-        this.pixi_app = new PIXI.Application(width, height, {backgroundColor : 0x53535e});
-        document.body.appendChild(this.pixi_app.view);
         var g = this;
-        this.selected = 1;
-        this.pixi_app.ticker.add(function(dt) {
-            this.mainLoop(dt);
-        }.bind(this));
+        window.phaser_game = new Phaser.Game(width, height, Phaser.CANVAS, 'build-battle', { preload: this.preload, create: this.create.bind(this) , update: this.mainLoop.bind(this)});
+
+        console.log("Finished initializing game...")
+    }
+    preload() {
+        phaser_game.load.image('blue_player', 'img/blue_player.png');
+        phaser_game.load.image('crosshair', 'img/crosshair.png');
+        phaser_game.load.image('place_building', 'img/place_building.png');
+        console.log("Loaded images.")
     }
 
     createCrosshair() {
         $("body").css("cursor", "none");
-        this.crosshair = PIXI.Sprite.fromImage("img/crosshair.png");
-        this.crosshair.anchor.set(.5);
-        this.pixi_app.stage.addChild(this.crosshair);
+        this.crosshair = phaser_game.add.sprite(50, 50, 'crosshair');
+        this.crosshair.anchor.setTo(.5);
     }
 
+    create() {
+        phaser_game.stage.backgroundColor = "#182d3b";
+        console.log("Running create");
+        initIo();
+	    this.socket.emit('connectToLobby', {id: this.player_id});
+    }
     addLocalPlayer(player) {
+        console.log("Attempting to add local player...")
         this.local_player = new Player(player.id, this.canvas, this, true, player.pos, player.hp);
         this.createCrosshair();
     }
@@ -46,7 +57,9 @@ class Game {
 
     removeOpposingPlayer(pid) {
         console.log("Removed opposing player " + pid)
-        this.opposing_players.splice(this.opposing_player_map[pid], 1);
+        var index = this.opposing_player_map[pid];
+        this.opposing_players[index].sprite.kill();
+        this.opposing_players.splice(index, 1);
         this.updateOpposingPlayerMap();
     }
 
@@ -55,15 +68,15 @@ class Game {
 
     }
 
-    mainLoop(deltatime){
-        if(this.local_player != undefined) {
+    mainLoop(dt){
+        if(this.local_player != undefined ) {
             this.updateServer();
-            this.tick(deltatime); // Handle entity updates.
+            this.tick(); // Handle entity updates.
         }
     }
 
-    tick(deltatime) {
-        this.local_player.move(deltatime);
+    tick() {
+        this.local_player.move();
         this.opposing_players.forEach(function(player){
             player.updateSprite();
         }.bind(this))
@@ -95,7 +108,11 @@ class Game {
 
     syncWithServer(server_data) {
         // Update from server here...
+        console.log("Receiving server update.")
         var players = server_data.players;
+        var c = 0;
+        var unencountered_opposing_players = Object.keys(this.opposing_player_map);
+
         players.forEach(function(server_player){
             if( this.local_player != undefined && server_player.id === this.local_player.id ) {
                 // update any stuff that is handled server side.
@@ -103,8 +120,15 @@ class Game {
 
                 if( this.opposing_players[this.opposing_player_map[server_player.id]] != undefined ){
                     this.opposing_players[this.opposing_player_map[server_player.id]].setFromUpdateData(server_player);
+                    unencountered_opposing_players.splice(unencountered_opposing_players.indexOf(server_player.id), 1)
+                } else {
+                    this.addOpposingPlayer(server_player);
+
                 }
             }
+        }.bind(this))
+        unencountered_opposing_players.forEach(function(player) {
+            this.removeOpposingPlayer(player);
         }.bind(this))
     }
 }
@@ -113,6 +137,7 @@ class Game {
 
 class Player {
     constructor(id, game_canvas, game, is_local, pos, hp) {
+        console.log("Player created...");
         this.id = id;
         this.max_move_speed = defaults.player_move_speed;
         this.acceleration = defaults.player_acceleration;
@@ -133,11 +158,10 @@ class Player {
         this.game = game;
         this.is_local = is_local;
         this.hp = hp;
-	    this.sprite = PIXI.Sprite.fromImage("img/blue_player.png");
-	    this.sprite.anchor.set(.5);
+	    this.sprite = phaser_game.add.sprite(pos.x, pos.y, 'blue_player');
+	    this.sprite.anchor.setTo(.5);
 	    this.sprite.width = this.width;
 	    this.sprite.height = this.height
-	    this.game.pixi_app.stage.addChild(this.sprite);
         if( is_local ) {
             this.setControls();
         }
@@ -208,7 +232,8 @@ class Player {
 
 
 
-    move(deltatime) {
+    move() {
+        var deltatime = 1.;
         if( this.moving.up ) this.pos.y -= this.max_move_speed * deltatime;
         if( this.moving.down ) this.pos.y += this.max_move_speed * deltatime;
         if( this.moving.right ) this.pos.x += this.max_move_speed * deltatime;

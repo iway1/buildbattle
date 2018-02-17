@@ -29,6 +29,7 @@ class GameServer{
     }
 
     addPlayer(player) {
+        console.log("Added player " + player.id)
         this.players.push(player);
         this.player_map[player.id] = this.players.length - 1;
     }
@@ -44,6 +45,7 @@ class GameServer{
         })
     }
     removePlayer(pid) {
+        console.log("Removed player " + pid);
         this.players.splice(this.player_map[pid], 1);
         this.updatePlayerMap();
     }
@@ -77,12 +79,13 @@ io.on('connection', function(client) {
 	    var x_init = 500;
 	    var y_init = 500;
 	    var new_player = new Player(player.id, {x: x_init, y: y_init}, 50);
-	    game.players.forEach(function(player){
-	        client.emit('addOpposingPlayer', player);
-	    }.bind(this))
         game.addPlayer(new_player);
         client.emit('addLocalPlayer', new_player);
-        client.broadcast.emit('addOpposingPlayer', new_player)
+        client.broadcast.emit('addOpposingPlayer', new_player);
+        console.log("Added player. Players are now: ")
+        game.players.forEach(function(player) {
+            console.log(player.id);
+        })
 	})
 
 	client.on('sync', function(data){
