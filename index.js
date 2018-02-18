@@ -1,64 +1,21 @@
-
-class Player {
-    constructor(id, pos, hp) {
-        console.log("Created new player with id " + id)
-        this.id = id;
-        this.pos = pos;
-        this.hp = hp;
-        this.direction = 0.0;
-        this.moving = {
-            up: false,
-            down: false,
-            left: false,
-            right: false
-        }
-    }
-    update(updateData) {
-        if( updateData.id != undefined) this.id = updateData.id;
-        if( updateData.pos != undefined ) {
-            this.pos = updateData.pos;
-        }
-        if( updateData.hp != undefined) this.hp = updateData.hp;
-        if( updateData.direction != undefined ) this.direction = updateData.direction;
-    }
-}
+var express = require('express');
+var app = express();
+//Static resources server
+app.use(express.static(__dirname + '/www'));
+var server = app.listen(process.env.PORT || 3000, function () {
+    var port = server.address().port;
+    console.log('Server running at port %s', port);
+});
+var io = require('socket.io')(server);
 
 
-class Grid {
-    constructor(tile_width, n_vertical, n_horizontal) {
-        this.rows = n_vertical;
-        this.cols = n_horizontal;
-        this.tile_width = tile_width;
-        this.tile_buildable = this.makeOneArray(this.rows, this.cols);
-        this.tile_walkable = this.makeOneArray(this.rows, this.cols);
-    }
-    makeOneArray(r, c) {
-        var ret = [];
-        var i = 0;
-        var j = 0;
-        while(i < r) {
-            j = 0;
-            var arr = [];
-            ret.push(arr)
-            while(j < c) {
-                ret[i].push(1);
-                j++;
-            }
-            i ++;
-        }
-        return ret;
-    }
-    isTileBuildable(row, col){
-        return this.tile_buildable[row][col];
-    }
-    center(row, col){
-        var x, y;
-        x = this.tile_width / 2;
-        y = this.tile_width / 2;
 
-        return {x: x + (col * this.tile_width), y: y + (row * this.tile_width)};
-    }
-}
+let Player = require('./lib/Player.js').Player;
+let Grid = require('./lib/Grid.js').Grid;
+let Entity = require('./lib/Entity.js').Entity;
+let Crate = require('./lib/Entity.js').Crate;
+
+
 
 var StructureBuildTypes = {
     TILE: "TILE",
@@ -70,91 +27,19 @@ var Structures = {
     CRATE: "CRATE"
 }
 
-var StructureHP = {
-    CRATE: 80
-}
 
-class Entity {
-    constructor(game, entity_id, origin) {
-        this.game = game;
-        this.id = entity_id;
-        this.origin = origin;
-    }
-}
+let N_ROWS = 10;
+let N_COLS = 12;
+let TILE_WIDTH = 64;
 
-class Structure extends Entity {
-    constructor(game, owner_id, entity_id, hp, type, coords, walkable) {
-        if( type == StructureBuildTypes.TILE ) {
-            super(game, entity_id, game.grid.center(coords.row, coords.col));
-        } else {
-            // Default behavior... NEEDS TO BE CHANGED!!
-            super(game, entity_id, game.grid.center(coords.row, coords.col))
-        }
-        this.owner_id = owner_id;
-        this.destroy_procedures = {};
-        this.type = type;
-        this.id = entity_id;
-        if( !this.walkable ) {
-            if( this.type == StructureBuildTypes.TILE ) {
-                this.game.grid.tile_walkable[coords.row][coords.col] = 0;
-                this.game.grid.tile_buildable[coords.row][coords.col] = 0;
-                // Revert changes when destroyed.
-                this.destroy_procedures.setWalkable = this.setWalkable;
-                this.destroy_procedures.setBuildable = this.setBuildable;
-            }
-        }
-    }
-    destroy() {
-        procedures = Object.keys(this.destroy_procedures);
-        var i = 0;
-        while( i < procedures.length ) {
-            this.destroy_procedures[procedures[i]]();
-            i ++;
-        }
-    }
+let MAX_HP = 15;
 
-    setWalkable() {
-        this.game.grid.tile_walkable[this.coords.row][this.coords.col] = 1;
-    }
-
-    setBuildable() {
-        this.game.grid.tile_buildable[this.coords.row][this.coords.col] = 1;
-    }
-
-
-}
-
-class Crate extends Structure {
-    constructor(game, owner_id, entity_id, coords ) {
-        super(game, owner_id, entity_id, StructureHP.CRATE, StructureBuildTypes.TILE, coords, false);
-    }
-}
-
-var express = require('express');
-var app = express();
-var counter = 0;
-var BALL_SPEED = 10;
-var WIDTH = 1100;
-var HEIGHT = 580;
-var MAX_HP = 100;
-
-var N_ROWS = 8;
-var N_COLS = 12;
-var TILE_WIDTH = 64;
-
-//Static resources server
-app.use(express.static(__dirname + '/www'));
-
-var server = app.listen(process.env.PORT || 3000, function () {
-	var port = server.address().port;
-	console.log('Server running at port %s', port);
-});
-
-var io = require('socket.io')(server);
 
 class GameServer{
 
     constructor(rows, cols, tile_width) {
+        
+
         this.players = []
         this.structures = []
         this.player_map = {}
@@ -239,6 +124,15 @@ class GameServer{
         this.updateEntityMap();
     }
 }
+
+
+
+
+
+
+
+
+
 
 
 var game = new GameServer(N_ROWS, N_COLS, TILE_WIDTH);
