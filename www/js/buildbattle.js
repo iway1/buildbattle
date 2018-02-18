@@ -60,6 +60,8 @@ class Game {
         console.log("Loaded images.")
     }
 
+
+
     createCrosshair() {
         $("body").css("cursor", "none");
         console.log("Created crosshair.")
@@ -132,7 +134,6 @@ class Game {
             }
         }.bind(this))
         var i = this.inventory_items[this.selected_item - 1]
-        console.log(i);
         if(i.type == InventoryItemTypes.BUILDABLE) {
             i.sprite.visible = 1;
             i.updateBuildSprite();
@@ -209,6 +210,8 @@ class Game {
 
     syncWithServer(server_data) {
         // Update from server here...
+        console.log("Server data:");
+        console.log(server_data);
         var players = server_data.players;
         var c = 0;
         var unencountered_opposing_players = Object.keys(this.opposing_player_map);
@@ -388,6 +391,7 @@ class Grid {
         this.cols = n_cols;
         this.tile_width = width;
         this.tile_buildable = this.makeOneArray(this.rows, this.cols);
+        this.tile_walkable = this.makeOneArray(this.rows, this.cols);
         this.buildable_graphics = this.buildableGraphics();
         this.grid_graphics = this.gridGraphics();
 

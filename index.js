@@ -28,7 +28,7 @@ class Grid {
     constructor(tile_width, n_vertical, n_horizontal) {
         this.rows = n_vertical;
         this.cols = n_horizontal;
-        this.width = tile_width;
+        this.tile_width = tile_width;
         this.tile_buildable = this.makeOneArray(this.rows, this.cols);
         this.tile_walkable = this.makeOneArray(this.rows, this.cols);
     }
@@ -49,7 +49,14 @@ class Grid {
         return ret;
     }
     isTileBuildable(row, col){
-        return this.tile_buildable[row][col]
+        return this.tile_buildable[row][col];
+    }
+    center(row, col){
+        var x, y;
+        x = this.tile_width / 2;
+        y = this.tile_width / 2;
+
+        return {x: x + (col * this.tile_width), y: y + (row * this.tile_width)};
     }
 }
 
@@ -77,21 +84,23 @@ class Entity {
 
 class Structure extends Entity {
     constructor(game, owner_id, entity_id, hp, type, coords, walkable) {
-        this.hp = hp;
-        this.type = type;
-        this.walkable = walkable;
-        this.coords = coords;
-
-        if( this.type == StructureBuildTypes.TILE ) {
-            super(game, entity_id, this.center());
+        if( type == StructureBuildTypes.TILE ) {
+            super(game, entity_id, game.grid.center(coords.row, coords.col));
+        } else {
+            // Default behavior... NEEDS TO BE CHANGED!!
+            super(game, entity_id, game.grid.center(coords.row, coords.col))
         }
         this.owner_id = owner_id;
         this.destroy_procedures = {};
+        this.type = type;
+        this.id = entity_id;
         if( !this.walkable ) {
             if( this.type == StructureBuildTypes.TILE ) {
                 this.game.grid.tile_walkable[coords.row][coords.col] = 0;
+                this.game.grid.tile_buildable[coords.row][coords.col] = 0;
                 // Revert changes when destroyed.
                 this.destroy_procedures.setWalkable = this.setWalkable;
+                this.destroy_procedures.setBuildable = this.setBuildable;
             }
         }
     }
@@ -108,19 +117,16 @@ class Structure extends Entity {
         this.game.grid.tile_walkable[this.coords.row][this.coords.col] = 1;
     }
 
-    center(){
-        var x, y;
-        x = this.game.grid.tile_width / 2;
-        y = this.game.grid.tile_width / 2;
-
-        return {x: x + (this.coords.col * this.grid.tile_width), y: y + (this.coords.row * this.tile_width)};
+    setBuildable() {
+        this.game.grid.tile_buildable[this.coords.row][this.coords.col] = 1;
     }
+
+
 }
 
 class Crate extends Structure {
     constructor(game, owner_id, entity_id, coords ) {
-        console.log
-        super(game, owner_id, entitiy_id, StructureHP.CRATE, StructureBuildTypes.TILE, coords, false);
+        super(game, owner_id, entity_id, StructureHP.CRATE, StructureBuildTypes.TILE, coords, false);
     }
 }
 
@@ -132,7 +138,7 @@ var WIDTH = 1100;
 var HEIGHT = 580;
 var MAX_HP = 100;
 
-var N_ROWS = 10;
+var N_ROWS = 8;
 var N_COLS = 12;
 var TILE_WIDTH = 64;
 
@@ -153,6 +159,9 @@ class GameServer{
         this.structures = []
         this.player_map = {}
         this.structure_map = {}
+        this.entities = [];
+        this.entity_map = {}
+
         this.rows = rows;
         this.cols = cols;
         this.width = tile_width;
@@ -206,7 +215,11 @@ class GameServer{
         }.bind(this));
     }
     getData() {
-        return {players: this.players, structures: this.structures, grid: this.grid};
+        var structures = [];
+        this.structures.forEach(function(structure) {
+            structures.push({origin: structure.origin, type: structure.type, id: structure.id, owner: structure.owner_id})
+        })
+        return {players: this.players, grid: this.grid, structures: structures};
     }
     playerLeft(pid) {
         this.removePlayer(pid);
@@ -214,7 +227,10 @@ class GameServer{
     }
 
     addCrate(owner_id, coords) {
-        var crate = new Crate(this, owner_id, this.newEntityId(), entity_id, coords);
+
+        var crate = new Crate(this, owner_id, this.newEntityId(), coords);
+        this.structure_map[crate.id] = this.structures.length;
+        this.structures.push(crate);
         this.entity_map[crate.id] = this.entities.length;
         this.entities.push(crate);
     }
@@ -269,10 +285,9 @@ io.on('connection', function(client) {
 	})
 
 	client.on('buildRequest', function(dat) {
-	    console.log("Recieved build request.")
-	    if(dat.structure_type == Structures.CRATE && game.grid.isTileBuildable(dat.coords.row, dat.coords.col)) {
+
+	    if(dat.type == Structures.CRATE && game.grid.isTileBuildable(dat.coords.row, dat.coords.col)) {
             game.addCrate(dat.player_id, dat.coords);
-            console.log("Added crate.")
 	    }
 	})
 
