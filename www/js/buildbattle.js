@@ -20,6 +20,15 @@ var StructureBuildTypes = {
     CORNER: "CORNER"
 }
 
+var StructureTypes = {
+    CRATE: "CRATE"
+}
+
+
+var InventoryItemTypes = {
+    BUILDABLE: "BUILDABLE",
+    NONE: "NONE"
+}
 
 class Game {
     constructor(socket, player_id, spawn_point, start_hp, tile_width=64, n_rows=10, n_cols=12) {
@@ -28,18 +37,17 @@ class Game {
         this.resource_nodes = [];
         this.opposing_players = [];
         this.opposing_player_map = {};
-        this.entities = [];
-        this.entity_map = {};
+        this.structures = []
+        this.structure_map = {};
         this.rows = n_rows;
         this.cols = n_cols;
         this.tile_width = tile_width;
         this.socket = socket;
         this.init_info = {spawn_point: spawn_point, hp: start_hp};
-        this.selected_slot = 1;
-        this.selected_buildable = 0;
-        this.buildables = {
+        this.selected_item = 1;
+        this.inventory_items = [];
 
-        }
+
         window.phaser_game = new Phaser.Game(tile_width*n_cols, tile_width*n_rows, Phaser.AUTO, 'build-battle', { preload: this.preload, create: this.create.bind(this) , update: this.mainLoop.bind(this)});
 
         console.log("Finished initializing game...")
@@ -65,7 +73,8 @@ class Game {
         this.initIo();
         this.createGrid();
         this.addLocalPlayer({id: this.player_id});
-        this.createBuildables();
+        this.initInventory();
+        phaser_game.input.onDown.add(this.clickDown, this);
 	    this.socket.emit('connectToLobby', {id: this.player_id});
     }
 
@@ -77,58 +86,66 @@ class Game {
     setCrosshair(x, y) {
         this.crosshair.x = x;
         this.crosshair.y = y;
-        if( this.selected_buildable ) {
-            var b = this.buildables[this.selected_slot];
-            var sprite = b.sprite;
-            if( b.type = StructureBuildTypes.TILE ) {
-
-
-
-            } else {
-                this.buildables[this.selected_slot].sprite.x = x;
-                this.buildables[this.selected_slot].sprite.y = y;
-            }
+        var i = this.inventory_items[this.selected_item - 1];
+        if( i.type == InventoryItemTypes.BUILDABLE ) {
+            i.updateBuildSprite();
         }
     }
 
-    createBuildables() {
+    getSelectedItem() {
+        return this.inventory_items[this.selected_item - 1]
+    }
+
+    clickDown(pointer) {
+        // Code for click down..
+        var x, y;
+        x = pointer.x;
+        y = pointer.y;
+        console.log("Did click down.")
+        var i = this.getSelectedItem();
+        if( i.type == InventoryItemTypes.BUILDABLE ) {
+            this.sendBuildRequest(i.structure_type, this.grid.coords(x, y));
+        } else {
+            //Default
+        }
+    }
+
+    sendBuildRequest(structure_type, coords) {
+        console.log("Sending build request...")
+        this.socket.emit('buildRequest', {player_id: this.player_id, type: structure_type, coords: coords});
+    }
+
+    initInventory() {
         var crate_sprite = phaser_game.add.sprite(0, 0, "crate")
         crate_sprite.anchor.set(.5);
         crate_sprite.visible = 0;
         crate_sprite.alpha = .3;
-        this.buildables[2] = {sprite: crate_sprite, type: StructureBuildTypes.TILE, walkable: false};
-
+        this.inventory_items.push({type: InventoryItemTypes.NONE})
+        this.inventory_items.push(new CrateInventoryItem(this));
     }
 
     updateSelectedSlot() {
-        var buildables = Object.keys(this.buildables);
-        buildables.forEach(function(b) {
-            this.buildables[b].sprite.visible = 0;
-        }.bind(this));
-        if( this.selected_slot in this.buildables ) {
-            var sprite = this.buildables[this.selected_slot].sprite;
-            this.crosshair.visible = 0;
-            sprite.visible = 1;
-
-            sprite.x = this.crosshair.x;
-            sprite.y = this.crosshair.y;
-            this.selected_buildable = 1;
-        } else {
-            this.crosshair.visible = 1;
-            this.selected_buildable = 0;
+        if(this.selected_item > this.inventory_items.length) return;
+        this.inventory_items.forEach(function(item){
+            if( item.type == InventoryItemTypes.BUILDABLE) {
+                item.sprite.visible = 0;
+            }
+        }.bind(this))
+        var i = this.inventory_items[this.selected_item - 1]
+        console.log(i);
+        if(i.type == InventoryItemTypes.BUILDABLE) {
+            i.sprite.visible = 1;
+            i.updateBuildSprite();
         }
     }
 
     addLocalPlayer() {
-        console.log("Attempting to add local player...")
-        console.log("Game: ")
         console.log(this);
         this.local_player = new Player(this.player_id, this, true, this.init_info.spawn_point, this.init_info.hp);
         this.createCrosshair();
     }
 
     addOpposingPlayer(player) {
-
         this.opposing_players.push(new Player(player.id, this, false, player.pos, player.hp));
         this.opposing_player_map[player.id] = this.opposing_players.length - 1;
         this.opposing_players[this.opposing_players.length - 1].updateSprite();
@@ -252,8 +269,6 @@ class Player {
         this.move_direction = 0;
         this.speed = 0;
         this.pos = pos;
-        this.selected_slot = 1;
-
         this.moving = {
             up: false,
             down: false,
@@ -265,7 +280,7 @@ class Player {
 	    this.sprite = phaser_game.add.sprite(pos.x, pos.y, 'blue_player');
 	    this.sprite.anchor.setTo(.5);
 	    this.sprite.width = this.width;
-	    this.sprite.height = this.height
+	    this.sprite.height = this.height;
         if( is_local ) {
             this.setControls();
         }
@@ -303,8 +318,12 @@ class Player {
                     break;
             }
             if(!isNaN(k)) {
-                t.game.selected_slot = Number.parseInt(k);
-                t.game.updateSelectedSlot();
+                var i = Number.parseInt(k);
+                if(k != 0 && k <= t.game.inventory_items.length){
+                    t.game.selected_item = Number.parseInt(k);
+                    console.log("New selected slot " + k)
+                    t.game.updateSelectedSlot();
+                }
             }
 
         }).keyup(function(e){
@@ -328,6 +347,9 @@ class Player {
             if( t.game.crosshair != undefined ){
                 t.game.setCrosshair(e.pageX, e.pageY);
             }
+        }).mousedown(function(e){
+            console.log("Mouse down detected.")
+            t.game.clickDown(e.pageX, e.pageY);
         })
     }
 
@@ -457,7 +479,7 @@ class Grid {
     }
 
     col(x) {
-        return Math.floor(x / this.tilewidth);
+        return Math.floor(x / this.tile_width);
     }
     coords(x, y) {
         return {row: this.row(y), col: this.col(x)};
@@ -482,9 +504,41 @@ class Grid {
         }
         return graphics;
     }
-
-
-
 }
 
+class InventoryItem {
+    constructor(game, sprite, type) {
+        this.game = game;
+        this.sprite = sprite;
+        this.type = type;
+    }
+}
 
+class Buildable extends InventoryItem {
+    constructor(game, sprite, build_type) {
+        sprite.visible = 0;
+        sprite.anchor.set(.5);
+        super(game, sprite, InventoryItemTypes.BUILDABLE);
+        this.build_type = build_type;
+    }
+    updateBuildSprite() {
+        if( this.build_type == StructureBuildTypes.TILE ) {
+            var center = this.game.grid.center(this.game.crosshair.x, this.game.crosshair.y);
+            this.sprite.x = center.x;
+            this.sprite.y = center.y;
+        } else {
+            //Default behavior
+            this.sprite.x = this.game.crosshair.x;
+            this.sprite.y = this.game.crosshair.y;
+        }
+    }
+}
+
+class CrateInventoryItem extends Buildable {
+    constructor(game) {
+        var sprite = phaser_game.add.sprite(0, 0, "crate");
+        sprite.alpha = .3;
+        super(game, sprite, StructureBuildTypes.TILE);
+        this.structure_type = StructureTypes.CRATE;
+    }
+}

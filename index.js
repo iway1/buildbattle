@@ -48,6 +48,9 @@ class Grid {
         }
         return ret;
     }
+    isTileBuildable(row, col){
+        return this.tile_buildable[row][col]
+    }
 }
 
 var StructureBuildTypes = {
@@ -147,9 +150,9 @@ class GameServer{
 
     constructor(rows, cols, tile_width) {
         this.players = []
-        this.entities = []
+        this.structures = []
         this.player_map = {}
-        this.entity_map = {}
+        this.structure_map = {}
         this.rows = rows;
         this.cols = cols;
         this.width = tile_width;
@@ -194,16 +197,16 @@ class GameServer{
             c++;
         }.bind(this));
     }
-    updateEntityMap() {
-        this.entity_map = {};
+    updateStructureMap() {
+        this.structure_map = {};
         var c = 0;
-        this.entity.forEach(function(e) {
-            this.entity_map[e.id] = c;
+        this.structures.forEach(function(e) {
+            this.structure_map[e.id] = c;
             c++;
         }.bind(this));
     }
     getData() {
-        return {players: this.players, structures: this.structures};
+        return {players: this.players, structures: this.structures, grid: this.grid};
     }
     playerLeft(pid) {
         this.removePlayer(pid);
@@ -265,9 +268,11 @@ io.on('connection', function(client) {
 	    //client.broadcast.emit('playerLeft', player_id);
 	})
 
-	client.on('buildStructure', function(dat) {
-	    if(dat.structure_type == Structures.CRATE) {
-
+	client.on('buildRequest', function(dat) {
+	    console.log("Recieved build request.")
+	    if(dat.structure_type == Structures.CRATE && game.grid.isTileBuildable(dat.coords.row, dat.coords.col)) {
+            game.addCrate(dat.player_id, dat.coords);
+            console.log("Added crate.")
 	    }
 	})
 
