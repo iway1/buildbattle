@@ -213,8 +213,12 @@ class Game {
         console.log("Server data:");
         console.log(server_data);
         var players = server_data.players;
+        var structures = server_data.structures;
         var c = 0;
         var unencountered_opposing_players = Object.keys(this.opposing_player_map);
+
+
+
 
         players.forEach(function(server_player){
             if( this.local_player != undefined && server_player.id === this.local_player.id ) {
@@ -230,9 +234,19 @@ class Game {
                 }
             }
         }.bind(this))
+
         unencountered_opposing_players.forEach(function(player) {
             this.removeOpposingPlayer(player);
         }.bind(this))
+
+        structures.forEach(function(structure){
+            if(!(structure.id in this.structure_map)) {
+                if( structure.type == StructureTypes.CRATE ) {
+                    structures
+                }
+            }
+        }.bind(this))
+
     }
 
     initIo() {
@@ -478,6 +492,14 @@ class Grid {
         return {x: this.col(x) * this.tile_width + this.tile_width / 2, y: this.row(y) * this.tile_width + this.tile_width / 2}
     }
 
+    centerFromCoords(row, col) {
+        var x, y;
+        x = this.tile_width / 2;
+        y = this.tile_width / 2;
+
+        return {x: x + (col * this.tile_width), y: y + (row * this.tile_width)};
+    }
+
     row(y) {
         return Math.floor(y / this.tile_width);
     }
@@ -507,6 +529,39 @@ class Grid {
             i++;
         }
         return graphics;
+    }
+}
+
+
+
+class Entity {
+    constructor(game, entity_id, origin) {
+        this.game = game;
+        this.id = entity_id;
+        this.origin = origin;
+    }
+}
+
+class Structure extends Entity {
+    constructor(game, owner_id, entity_id, hp, type, coords, walkable) {
+        if( type == StructureBuildTypes.TILE ) {
+            super(game, entity_id, game.grid.center(coords.row, coords.col));
+        } else {
+            // Default behavior... NEEDS TO BE CHANGED!!
+            super(game, entity_id, game.grid.center(coords.row, coords.col))
+        }
+        this.owner_id = owner_id;
+        this.type = type;
+        this.id = entity_id;
+    }
+}
+
+class Crate extends Structure {
+    constructor(game, owner_id, entity_id, coords ) {
+        super(game, owner_id, entity_id, StructureHP.CRATE, StructureBuildTypes.TILE, coords, false);
+        var origin = game.grid.centerFromCoords(coords);
+        this.sprite = phaser_game.add.sprite(origin.x, origin.y, "crate");
+        this.sprite.anchor.set(.5);
     }
 }
 
