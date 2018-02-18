@@ -48,7 +48,7 @@ class Game {
         this.inventory_items = [];
 
 
-        window.phaser_game = new Phaser.Game(tile_width*n_cols, tile_width*n_rows, Phaser.AUTO, 'build-battle', { preload: this.preload, create: this.create.bind(this) , update: this.mainLoop.bind(this)});
+        window.phaser_game = new Phaser.Game(tile_width*n_cols, tile_width*n_rows, Phaser.CANVAS, 'build-battle', { preload: this.preload, create: this.create.bind(this) , update: this.mainLoop.bind(this)});
 
         console.log("Finished initializing game...")
     }
@@ -210,8 +210,6 @@ class Game {
 
     syncWithServer(server_data) {
         // Update from server here...
-        console.log("Server data:");
-        console.log(server_data);
         var players = server_data.players;
         var structures = server_data.structures;
         var c = 0;
@@ -239,13 +237,18 @@ class Game {
             this.removeOpposingPlayer(player);
         }.bind(this))
 
-        structures.forEach(function(structure){
-            if(!(structure.id in this.structure_map)) {
-                if( structure.type == StructureTypes.CRATE ) {
-                    structures
+        var updateStructures = function(){
+            structures.forEach(function(structure){
+                if(!(structure.id in this.structure_map)) {
+                    if( structure.type == StructureTypes.CRATE ) {
+                        this.structures.push(new Crate(this, structure.owner_id, structure.id, structure.origin))
+                    }
                 }
-            }
-        }.bind(this))
+            }.bind(this))
+        }.bind(this)
+        console.time("updateStructures");
+        updateStructures();
+        console.timeEnd("updateStructures")
 
     }
 
@@ -342,7 +345,6 @@ class Player {
                     t.game.updateSelectedSlot();
                 }
             }
-
         }).keyup(function(e){
             var k = e.key;
             switch(k) {
@@ -543,7 +545,7 @@ class Entity {
 }
 
 class Structure extends Entity {
-    constructor(game, owner_id, entity_id, hp, type, coords, walkable) {
+    constructor(game, owner_id, entity_id, hp, type, build_type, coords, walkable) {
         if( type == StructureBuildTypes.TILE ) {
             super(game, entity_id, game.grid.center(coords.row, coords.col));
         } else {
@@ -557,9 +559,8 @@ class Structure extends Entity {
 }
 
 class Crate extends Structure {
-    constructor(game, owner_id, entity_id, coords ) {
-        super(game, owner_id, entity_id, StructureHP.CRATE, StructureBuildTypes.TILE, coords, false);
-        var origin = game.grid.centerFromCoords(coords);
+    constructor(game, owner_id, entity_id, origin, hp ) {
+        super(game, owner_id, entity_id, hp, StructureTypes.CRATE, StructureBuildTypes.TILE, origin, false);
         this.sprite = phaser_game.add.sprite(origin.x, origin.y, "crate");
         this.sprite.anchor.set(.5);
     }

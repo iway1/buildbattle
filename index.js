@@ -17,16 +17,11 @@ let Crate = require('./lib/Entity.js').Crate;
 
 
 
-var StructureBuildTypes = {
-    TILE: "TILE",
-    EDGE: "EDGE",
-    CORNER: "CORNER"
-}
+
 
 var Structures = {
     CRATE: "CRATE"
 }
-
 
 let N_ROWS = 10;
 let N_COLS = 12;
@@ -124,16 +119,6 @@ class GameServer{
         this.updateEntityMap();
     }
 }
-
-
-
-
-
-
-
-
-
-
 
 var game = new GameServer(N_ROWS, N_COLS, TILE_WIDTH);
 
